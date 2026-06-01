@@ -1,18 +1,21 @@
+
 import { Document, model, Schema } from "mongoose";
 
-export interface IFavorite extends Document{
-    cityName:string
+export interface IFavoriteCity extends Document {
+    cityName: string
+    country: string
     note?: string
-    user:Schema.Types.ObjectId    //track login user
+    user: Schema.Types.ObjectId // track logged-in user
 }
 
-const FavoriteSchema = new Schema<IFavorite>(
+const FavoriteSchema = new Schema<IFavoriteCity>(
     {
-        cityName: {type:String, required:true},
-        note: {type:String, default: ""},
-        user: {type: Schema.Types.ObjectId, ref:"User", required:true}
+        cityName: { type: String, required: true },
+        country: { type: String, default: "" },
+        note: { type: String, default: "" },
+        user: { type: Schema.Types.ObjectId, ref: "user_details", required: true }
     },
-    {timestamps:true}
+    { timestamps: true }
 )
 
-export const FavoriteModel = model<IFavorite>("Favorite", FavoriteSchema)
+export const FavoriteCityModel = model<IFavoriteCity>("FavoriteCity", FavoriteSchema)
