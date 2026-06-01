@@ -1,4 +1,5 @@
 import { Request, Response } from "express"
+import { WeatherLogModel } from "../models/weatherLogModel"
 import axios from "axios"
 import dotenv from "dotenv"
 dotenv.config()
@@ -26,6 +27,20 @@ export const getWeatherData = async (req: Request, res: Response) => {
       humidity: weatherRes.data.main.humidity,
       description: weatherRes.data.weather[0].description,
       icon: weatherRes.data.weather[0].icon
+    }
+
+    try {
+      await WeatherLogModel.create({
+        cityName: weatherData.city,
+        temp: weatherData.temp,
+        humidity: weatherData.humidity,
+        description: weatherData.description,
+        title: `Weather in ${weatherData.city}`
+      })
+      console.log(`Weather log saved successfully for ${weatherData.city}`)
+    } catch (logErr) {
+      console.error("Failed to create weather log in DB:", logErr)
+      // log එක සේව් වුනේ නැතත් මුළු app එකම crash නොවී ඉන්නයි මේ try-catch එක දැම්මේ
     }
 
     let aiRecommendations = { lifestyle: "", outfit: "" }
@@ -90,11 +105,14 @@ export const getWeatherData = async (req: Request, res: Response) => {
       }
     }
 
+    const weatherLogs = await WeatherLogModel.find({ cityName: weatherData.city }).sort({ timestamp: 1 })
+
     res.status(200).json({
       message: "Success",
       data: {
         ...weatherData,
-        ai: aiRecommendations
+        ai: aiRecommendations,
+        logs: weatherLogs
       }
     })
 
