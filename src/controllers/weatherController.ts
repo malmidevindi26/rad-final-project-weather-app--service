@@ -123,3 +123,26 @@ export const getWeatherData = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Error fetching weather data" })
   }
 }
+
+export const getWeatherForecast = async (req: Request, res:Response) => {
+  const {city} = req.query;
+
+  if(!city){
+    return res.status(400).json({message: "city name is required"})
+  }
+
+  try {
+    //call openWeather forecast api
+    const response = await axios.get(
+      `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${OPENWEATHER_API_KEY}&units=metric`
+    ) 
+
+    res.status(200).json({message: "Forecast fetch successfully",data: response.data})
+    
+  } catch (error:any) {
+    console.error("Error fetching forecast", error)
+    res.status(500).json({
+      message: error.response?.data?.message || "Failed to fetch details"
+    })
+  }
+}
