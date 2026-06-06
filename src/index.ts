@@ -6,6 +6,7 @@ import mongoose from "mongoose";
 import authRouter from "./Routers/authRouter";
 import weatherRouter from "./Routers/weatherRouter";
 import favoriteRouter from "./Routers/favoriteRouter";
+import { startEmailScheduler } from "./utils/emailScheduler";
 
 const app = express();
 const PORT = process.env.PORT;
@@ -23,4 +24,5 @@ mongoose.connect(DB_URL).then(() => {
 
 app.listen(PORT, () => {
   console.log("App is running in port :", PORT);
+  startEmailScheduler()
 });

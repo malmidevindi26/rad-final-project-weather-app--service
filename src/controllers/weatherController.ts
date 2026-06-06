@@ -40,7 +40,6 @@ export const getWeatherData = async (req: Request, res: Response) => {
       console.log(`Weather log saved successfully for ${weatherData.city}`)
     } catch (logErr) {
       console.error("Failed to create weather log in DB:", logErr)
-      // log එක සේව් වුනේ නැතත් මුළු app එකම crash නොවී ඉන්නයි මේ try-catch එක දැම්මේ
     }
 
     let aiRecommendations = { lifestyle: "", outfit: "" }

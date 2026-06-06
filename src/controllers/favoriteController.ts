@@ -1,4 +1,4 @@
-import { Response } from "express"
+import { Request,Response } from "express"
 import { AuthRequest } from "../middleware/auth"
 import { FavoriteCityModel } from "../models/favoriteModel"
 import { WeatherLogModel } from "../models/weatherLogModel"
@@ -159,5 +159,27 @@ export const deleteWeatherLog = async (req: AuthRequest, res: Response) => {
     } catch (error) {
         console.error(error)
         res.status(500).json({ message: "Failed to delete weather log entry" })
+    }
+}
+
+// toggle email alert for favorite city
+export const toggleCityAlert = async (req: Request, res:Response) => {
+    const {id} = req.params;
+
+    try {
+        const favorite = await FavoriteCityModel.findById(id);
+        if(!favorite){
+            return res.status(404).json({message: "Favorite city not found"});
+        }
+
+        favorite.isAlertEnabled = !favorite.isAlertEnabled;
+        await favorite.save();
+
+        return res.status(200).json({
+            message: "Alert status updated successfully",
+            data: favorite
+        })
+    } catch (error) {
+        return res.status(500).json({message: "Error updating alert status"})
     }
 }

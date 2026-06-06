@@ -8,7 +8,8 @@ import {
     addWeatherLog,
     getLogsByCity,
     updateWeatherLog,
-    deleteWeatherLog } from "../controllers/favoriteController";
+    deleteWeatherLog, 
+    toggleCityAlert} from "../controllers/favoriteController";
 
 const router = Router()
 
@@ -21,5 +22,6 @@ router.post("/logs", authenticate, addWeatherLog)
 router.get("/logs/:cityId", authenticate, getLogsByCity)
 router.put("/logs/:id", authenticate, updateWeatherLog)
 router.delete("/logs/:id", authenticate, deleteWeatherLog)
+router.patch("/:id/toggle-alert", authenticate, toggleCityAlert);
 
 export default router
