@@ -146,3 +146,64 @@ export const getWeatherForecast = async (req: Request, res:Response) => {
     })
   }
 }
+
+export const handleChatBot = async (req: Request, res: Response) =>{
+  const {message, currentCity} = req.body;
+
+  if(!message){
+    return res.status(400).json({message: "Message is required"})
+  }
+
+  try {
+    if(!GOOGLE_API_KEY){
+      return res.status(500).json({message: "AI API key is missing"})
+    }
+
+    let weatherContext = ""
+    if(currentCity){
+      try {
+        const weatherRes = await axios.get(
+          `https://api.openweathermap.org/data/2.5/weather?q=${currentCity}&appid=${OPENWEATHER_API_KEY}&units=metric`
+        )
+        weatherContext = `The current weather in ${currentCity} is ${weatherRes.data.main.temp}°C, ${weatherRes.data.weather[0].description}, humidity ${weatherRes.data.main.humidity}%.`;
+      } catch (error) {
+        console.log("No specifi city weather fetched for chat context")
+      }
+    }
+
+    const promptText = `
+      You are SkyAI, a smart weather assistant chatbot built into a Weather Dashboard app.
+      The user is asking: "${message}"
+      ${weatherContext ? `Context about currently viewed city: ${weatherContext}` : ""}
+      
+      Instructions:
+      - Answer friendliness, politely, and concisely (max 2-3 sentences).
+      - If the user asks about traveling, outfits, or outdoor plans, give smart advice based on weather.
+      - If they ask general weather questions or general greetings, respond appropriately.
+    `;
+
+    // call gemini api
+    const aiResponse = await axios.post(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent",
+      {
+        contents: [{ parts: [{ text: promptText }] }]
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": GOOGLE_API_KEY
+        }
+      }
+    )
+
+    const botReply = 
+       aiResponse.data?.candidates?.[0]?.content?.[0]?.text ||
+       aiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+       " I'm sorry, I couldnt process that, Can you try again?"
+
+       res.status(200).json({reply: botReply.trim()})
+  } catch (error:any) {
+    console.error("ChatBot error", error)
+    res.status(500).json({message: "Failed to fetch response from SkyAI Assistant"})
+  }
+}
