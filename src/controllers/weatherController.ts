@@ -3,22 +3,22 @@ import { WeatherLogModel } from "../models/weatherLogModel"
 import axios from "axios"
 import dotenv from "dotenv"
 dotenv.config()
-
+ 
 const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY 
-
+ 
 export const getWeatherData = async (req: Request, res: Response) => {
   const { city } = req.query
-
+ 
   if (!city) {
     return res.status(400).json({ message: "City name is required..!" })
   }
-
+ 
   try {
     const weatherRes = await axios.get(
       `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${OPENWEATHER_API_KEY}&units=metric`
     )
-
+ 
     const weatherData = {
       city: weatherRes.data.name,
       country: weatherRes.data.sys.country,
@@ -28,7 +28,7 @@ export const getWeatherData = async (req: Request, res: Response) => {
       description: weatherRes.data.weather[0].description,
       icon: weatherRes.data.weather[0].icon
     }
-
+ 
     try {
       await WeatherLogModel.create({
         cityName: weatherData.city,
@@ -41,9 +41,9 @@ export const getWeatherData = async (req: Request, res: Response) => {
     } catch (logErr) {
       console.error("Failed to create weather log in DB:", logErr)
     }
-
+ 
     let aiRecommendations = { lifestyle: "", outfit: "" }
-
+ 
     if (GOOGLE_API_KEY) {
       try {
         const promptText = `
@@ -54,9 +54,10 @@ export const getWeatherData = async (req: Request, res: Response) => {
           2. An outfit/clothing suggestion.
           Return the output ONLY as a valid JSON object with keys "lifestyle" and "outfit". Do not include markdown or backticks.
         `
-
-       const aiResponse = await axios.post(
-          "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent",
+ 
+        // ✅ Updated model: gemini-3-flash-preview → gemini-3.5-flash
+        const aiResponse = await axios.post(
+          "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent",
           {
             contents: [
               {
@@ -75,17 +76,16 @@ export const getWeatherData = async (req: Request, res: Response) => {
             }
           }
         )
-
+ 
         let aiText =
           aiResponse.data?.candidates?.[0]?.content?.[0]?.text ||
           aiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
           ""
-
+ 
         console.log("RAW AI TEXT RECEIVED:", aiText)
-
+ 
         if (aiText) {
-       
-          //cleaning json becouse if gemini gives wrong text or json tags
+          // cleaning json because if gemini gives wrong text or json tags
           const jsonMatch = aiText.match(/\{[\s\S]*\}/)
           if (jsonMatch) {
             aiText = jsonMatch[0]
@@ -96,16 +96,16 @@ export const getWeatherData = async (req: Request, res: Response) => {
         }
       } catch (aiError) {
         console.error("Gemini Axios Error:", aiError)
-        // set default recommendation , if crash app
+        // set default recommendation, if crash app
         aiRecommendations = {
           lifestyle: `Weather is ${weatherData.description}. Take care when planning outdoor activities!`,
           outfit: weatherData.temp > 25 ? "Wear light cotton clothes to stay cool." : "A light jacket or layered clothing would be nice."
         }
       }
     }
-
+ 
     const weatherLogs = await WeatherLogModel.find({ cityName: weatherData.city }).sort({ timestamp: 1 })
-
+ 
     res.status(200).json({
       message: "Success",
       data: {
@@ -114,7 +114,7 @@ export const getWeatherData = async (req: Request, res: Response) => {
         logs: weatherLogs
       }
     })
-
+ 
   } catch (err: any) {
     console.error(err)
     if (err.response && err.response.status === 404) {
@@ -123,54 +123,54 @@ export const getWeatherData = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Error fetching weather data" })
   }
 }
-
-export const getWeatherForecast = async (req: Request, res:Response) => {
-  const {city} = req.query;
-
-  if(!city){
-    return res.status(400).json({message: "city name is required"})
+ 
+export const getWeatherForecast = async (req: Request, res: Response) => {
+  const { city } = req.query
+ 
+  if (!city) {
+    return res.status(400).json({ message: "city name is required" })
   }
-
+ 
   try {
-    //call openWeather forecast api
+    // call openWeather forecast api
     const response = await axios.get(
       `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${OPENWEATHER_API_KEY}&units=metric`
-    ) 
-
-    res.status(200).json({message: "Forecast fetch successfully",data: response.data})
-    
-  } catch (error:any) {
+    )
+ 
+    res.status(200).json({ message: "Forecast fetch successfully", data: response.data })
+ 
+  } catch (error: any) {
     console.error("Error fetching forecast", error)
     res.status(500).json({
       message: error.response?.data?.message || "Failed to fetch details"
     })
   }
 }
-
-export const handleChatBot = async (req: Request, res: Response) =>{
-  const {message, currentCity} = req.body;
-
-  if(!message){
-    return res.status(400).json({message: "Message is required"})
+ 
+export const handleChatBot = async (req: Request, res: Response) => {
+  const { message, currentCity } = req.body
+ 
+  if (!message) {
+    return res.status(400).json({ message: "Message is required" })
   }
-
+ 
   try {
-    if(!GOOGLE_API_KEY){
-      return res.status(500).json({message: "AI API key is missing"})
+    if (!GOOGLE_API_KEY) {
+      return res.status(500).json({ message: "AI API key is missing" })
     }
-
+ 
     let weatherContext = ""
-    if(currentCity){
+    if (currentCity) {
       try {
         const weatherRes = await axios.get(
           `https://api.openweathermap.org/data/2.5/weather?q=${currentCity}&appid=${OPENWEATHER_API_KEY}&units=metric`
         )
-        weatherContext = `The current weather in ${currentCity} is ${weatherRes.data.main.temp}°C, ${weatherRes.data.weather[0].description}, humidity ${weatherRes.data.main.humidity}%.`;
+        weatherContext = `The current weather in ${currentCity} is ${weatherRes.data.main.temp}°C, ${weatherRes.data.weather[0].description}, humidity ${weatherRes.data.main.humidity}%.`
       } catch (error) {
-        console.log("No specifi city weather fetched for chat context")
+        console.log("No specific city weather fetched for chat context")
       }
     }
-
+ 
     const promptText = `
       You are SkyAI, a smart weather assistant chatbot built into a Weather Dashboard app.
       The user is asking: "${message}"
@@ -180,11 +180,11 @@ export const handleChatBot = async (req: Request, res: Response) =>{
       - Answer friendliness, politely, and concisely (max 2-3 sentences).
       - If the user asks about traveling, outfits, or outdoor plans, give smart advice based on weather.
       - If they ask general weather questions or general greetings, respond appropriately.
-    `;
-
-    // call gemini api
+    `
+ 
+    // ✅ Updated model: gemini-3-flash-preview → gemini-3.5-flash
     const aiResponse = await axios.post(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent",
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent",
       {
         contents: [{ parts: [{ text: promptText }] }]
       },
@@ -195,15 +195,16 @@ export const handleChatBot = async (req: Request, res: Response) =>{
         }
       }
     )
-
-    const botReply = 
-       aiResponse.data?.candidates?.[0]?.content?.[0]?.text ||
-       aiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-       " I'm sorry, I couldnt process that, Can you try again?"
-
-       res.status(200).json({reply: botReply.trim()})
-  } catch (error:any) {
+ 
+    const botReply =
+      aiResponse.data?.candidates?.[0]?.content?.[0]?.text ||
+      aiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "I'm sorry, I couldn't process that. Can you try again?"
+ 
+    res.status(200).json({ reply: botReply.trim() })
+ 
+  } catch (error: any) {
     console.error("ChatBot error", error)
-    res.status(500).json({message: "Failed to fetch response from SkyAI Assistant"})
+    res.status(500).json({ message: "Failed to fetch response from SkyAI Assistant" })
   }
 }
