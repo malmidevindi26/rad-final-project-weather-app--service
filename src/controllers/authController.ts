@@ -5,6 +5,8 @@ import { signAccessToken, signRefreshToken } from "../utils/token"
 import { AuthRequest } from "../middleware/auth"
 import mongoose from "mongoose"
 import { FavoriteCityModel } from "../models/favoriteModel"
+import cloudinary from "../config/cloudinary"
+import { error } from "node:console"
 
 // user registration
 export const creatUser = async (req:Request, res:Response) => {
@@ -94,21 +96,50 @@ export const updateProfilePicture = async (req: AuthRequest, res:Response) => {
   return res.status(401).json({message:"Unauthorized access"})
  }
 
-  const {profilePicUrl} = req.body
+  //const {profilePicUrl} = req.body
 
   const userId = req.user.sub // user id coming from middleware
 
-  try{
-    const updatedUser = await UserModel.findByIdAndUpdate(
-      userId,
-      {profilePicture: profilePicUrl},
-      {new:true}
-    ).select("-password")
-    if(!updatedUser){
-      return res.status(404).json({message: "User not found"})
-    }
+  // checking file has been recieved by multer
+  if(!req.file){
+    return res.status(400).json({message: "No image file uploaded"})
+  }
 
-    res.status(200).json({message: "Profile picture updated successfully", user:updatedUser})
+  try{
+    // create stream upload file buffer to cloudinary
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: "skyai_profile_pics", // cloudinary folder name
+        transformation: [{width: 150, height: 150, crop:"fill"}]
+      },
+      async (error, result) => {
+        if(error || !result){
+          console.error("Clodinary upload error:", error)
+          return res.status(500).json({message: "Cloudinary upload failed"})
+        }
+        
+        // cloudinary secure url after uploading
+        const profilePicUrl = result.secure_url
+
+        // save profile picture url in database
+        const updateUser = await UserModel.findByIdAndUpdate(
+          userId,
+          {profilePicture: profilePicUrl},
+          {new: true}
+        ).select("-password")
+
+        if(!updateUser){
+          return res.status(400).json({message: "User not found"})
+        }
+        return res.status(200).json({
+          message: "Profile picture uploaded and updated successfully",
+          user: updateUser
+        })
+      }
+    )
+    // finish writing the buffer to stream
+    uploadStream.end(req.file.buffer)
+
   }catch(err){
     console.error(err)
     res.status(500).json({message: "Failed to update profile picture"})
